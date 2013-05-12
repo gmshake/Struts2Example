@@ -1,0 +1,6 @@
+<jboss-web>
+	<class-loading java2ClassLoadingCompliance="false">
+		<loader-repository>myapp:loader=Struts2Example.war</loader-repository>
+		<loader-repository-config>java2ParentDelegation=false</loader-repository-config>
+	</class-loading>
+</jboss-web>
