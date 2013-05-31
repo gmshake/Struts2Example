@@ -8,7 +8,7 @@ public class ClassLoaderThread extends Thread {
 	private static final Logger log = Logger.getLogger(ClassLoaderThread.class);
 
 	private Thread getThreadFromClassLoader(ClassLoader loader) {
-		Thread thread = (Thread) Main.getInstanceFromClassLoader(
+		Thread thread = (Thread) Utils.getInstanceFromClassLoader(
 				"tk.blizz.moor.AppThread", loader);
 		thread.setContextClassLoader(loader);
 		return thread;
@@ -18,8 +18,15 @@ public class ClassLoaderThread extends Thread {
 	public void run() {
 		log.debug("ClassLoaderThread Start run...");
 		ClassLoader cl = Thread.currentThread().getClass().getClassLoader();
-		ClassLoader cl1 = new MoorClassLoader(cl, true, "/tmp/shared");
-		ClassLoader cl2 = new MoorClassLoader(cl, true);
+
+		log.debug("ClassLoaderThread's class loader: " + cl);
+		log.debug("ClassLoaderThread's context class loader: "
+				+ Thread.currentThread().getContextClassLoader());
+		if (cl != Thread.currentThread().getContextClassLoader())
+			throw new IllegalStateException();
+
+		ClassLoader cl1 = new MoorClassLoader(cl, true, "/tmp/app1/shared");
+		ClassLoader cl2 = new MoorClassLoader(cl, false, "/tmp/app2/shared");
 
 		Thread t1 = getThreadFromClassLoader(cl1);
 
@@ -32,6 +39,10 @@ public class ClassLoaderThread extends Thread {
 		}
 		t2.start();
 
+		ThreadGroup group = Thread.currentThread().getThreadGroup();
+		synchronized (group) {
+			group.notifyAll();
+		}
 		log.debug("ClassLoaderThread end !!!");
 
 	}
