@@ -15,6 +15,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class MoorClassLoader extends ClassLoader {
+	private boolean debugEnabled;
 	private final String[] path;
 	private final ArrayList<URL> urls;
 	private final boolean parentLast;
@@ -113,7 +114,8 @@ public class MoorClassLoader extends ClassLoader {
 
 	@Override
 	public Class<?> findClass(String className) throws ClassNotFoundException {
-		System.out.println(this.toString() + " load: " + className);
+		if (isDebugEnabled())
+			System.out.println(this.toString() + " load: " + className);
 
 		Class<?> result = this.classes.get(className); // checks in cached
 														// classes
@@ -213,8 +215,9 @@ public class MoorClassLoader extends ClassLoader {
 
 		try {
 			FileInputStream stream = new FileInputStream(target);
-			System.out.println("found class " + className + " in dir: "
-					+ dir.getAbsolutePath());
+			if (isDebugEnabled())
+				System.out.println("found class " + className + " in dir: "
+						+ dir.getAbsolutePath());
 			return stream;
 		} catch (Exception e) {
 		}
@@ -228,8 +231,9 @@ public class MoorClassLoader extends ClassLoader {
 			if (entry == null)
 				return null;
 			InputStream is = jarFile.getInputStream(entry);
-			System.out.println("found class " + className + " in jar file: "
-					+ jar.getAbsolutePath());
+			if (isDebugEnabled())
+				System.out.println("found class " + className
+						+ " in jar file: " + jar.getAbsolutePath());
 			return is;
 		} catch (Exception e) {
 		}
@@ -255,6 +259,14 @@ public class MoorClassLoader extends ClassLoader {
 
 	private String fileNameToClassName(String fileName) {
 		return fileName.replaceAll("\\.class", "").replace('/', '.');
+	}
+
+	public boolean isDebugEnabled() {
+		return debugEnabled;
+	}
+
+	public void setDebugEnabled(boolean debugEnabled) {
+		this.debugEnabled = debugEnabled;
 	}
 
 	private class MoorResourcesEnumeration implements Enumeration<URL> {
