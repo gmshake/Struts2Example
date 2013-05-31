@@ -16,10 +16,10 @@ public class ClassLoaderThread extends Thread {
 
 	@Override
 	public void run() {
-		log.debug("Start run...");
+		log.debug("ClassLoaderThread Start run...");
 		ClassLoader cl = Thread.currentThread().getClass().getClassLoader();
-		ClassLoader cl1 = new MoorClassLoader("/tmp/shared", true);
-		ClassLoader cl2 = new MoorClassLoader();
+		ClassLoader cl1 = new MoorClassLoader(cl, true, "/tmp/shared");
+		ClassLoader cl2 = new MoorClassLoader(cl, true);
 
 		Thread t1 = getThreadFromClassLoader(cl1);
 
@@ -27,10 +27,12 @@ public class ClassLoaderThread extends Thread {
 
 		t1.start();
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(100);
 		} catch (InterruptedException e) {
 		}
 		t2.start();
+
+		log.debug("ClassLoaderThread end !!!");
 
 	}
 }
