@@ -199,7 +199,7 @@ public class MoorClassLoader extends ClassLoader {
 					if (f.isDirectory())
 						list.add(new URL("file", "", f.getAbsolutePath() + "/"));
 					else if (f.isFile() && f.getAbsolutePath().endsWith(".jar"))
-						list.add(new URL("jar", "", "file://"
+						list.add(new URL("jar", "", "file:"
 								+ f.getAbsolutePath() + "!/"));
 				} catch (MalformedURLException e) {
 					if (traceEnabled)
@@ -227,8 +227,8 @@ public class MoorClassLoader extends ClassLoader {
 									+ "/"));
 						else if (f.isFile()
 								&& f.getAbsolutePath().endsWith(".jar"))
-							list.add(new URL("jar", "", s.toExternalForm()
-									+ "!/"));
+							list.add(new URL("jar", "", "file:"
+									+ f.getAbsolutePath() + "!/"));
 					} catch (MalformedURLException e) {
 						if (traceEnabled)
 							e.printStackTrace();
@@ -315,7 +315,7 @@ public class MoorClassLoader extends ClassLoader {
 			if (f.isFile() && f.getAbsolutePath().endsWith(".jar")) {
 				URL jar;
 				try {
-					jar = new URL("jar", "", "file://" + f.getAbsolutePath()
+					jar = new URL("jar", "", "file:" + f.getAbsolutePath()
 							+ "!/");
 					URL newJar = getFromJar(jar, resourceName);
 					if (newJar != null)
