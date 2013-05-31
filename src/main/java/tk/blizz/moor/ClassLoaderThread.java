@@ -2,7 +2,7 @@ package tk.blizz.moor;
 
 import org.apache.log4j.Logger;
 
-import tk.blizz.moor.classLoader.MoorClassLoader;
+import tk.blizz.moor.loader.MoorClassLoader;
 
 public class ClassLoaderThread extends Thread {
 	private static final Logger log = Logger.getLogger(ClassLoaderThread.class);

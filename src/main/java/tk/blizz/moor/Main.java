@@ -4,7 +4,7 @@ import java.io.File;
 
 import org.apache.log4j.Logger;
 
-import tk.blizz.moor.classLoader.MoorClassLoader;
+import tk.blizz.moor.loader.MoorClassLoader;
 
 public class Main {
 	private static Logger log = Logger.getLogger(Main.class);

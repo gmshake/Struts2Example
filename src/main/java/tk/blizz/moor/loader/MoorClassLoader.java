@@ -1,4 +1,4 @@
-package tk.blizz.moor.classLoader;
+package tk.blizz.moor.loader;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
