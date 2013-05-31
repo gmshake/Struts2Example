@@ -1,5 +1,8 @@
 package tk.blizz.moor;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 import org.apache.log4j.Logger;
 
 import tk.blizz.moor.loader.MoorClassLoader;
@@ -16,34 +19,42 @@ public class AppLoaderThread extends Thread {
 
 	@Override
 	public void run() {
-		log.debug("ClassLoaderThread Start run...");
+		log.debug("AppLoaderThread Start run...");
 		ClassLoader cl = Thread.currentThread().getClass().getClassLoader();
+		ClassLoader ctx = Thread.currentThread().getContextClassLoader();
 
-		log.debug("ClassLoaderThread's class loader: " + cl);
-		log.debug("ClassLoaderThread's context class loader: "
-				+ Thread.currentThread().getContextClassLoader());
-		if (cl != Thread.currentThread().getContextClassLoader())
+		log.debug("AppLoaderThread's class loader: " + cl);
+		log.debug("AppLoaderThread's context class loader: " + ctx);
+
+		if (cl != ctx)
 			throw new IllegalStateException();
 
-		ClassLoader cl1 = new MoorClassLoader(cl, true, "/tmp/app1/shared");
-		ClassLoader cl2 = new MoorClassLoader(cl, false, "/tmp/app2/shared");
-
-		Thread t1 = getThreadFromClassLoader(cl1);
-
-		Thread t2 = getThreadFromClassLoader(cl2);
-
-		t1.start();
+		MoorClassLoader cl1;
+		MoorClassLoader cl2;
 		try {
-			Thread.sleep(100);
-		} catch (InterruptedException e) {
-		}
-		t2.start();
+			cl1 = new MoorClassLoader(cl, true, new URL("file", "",
+					"/tmp/app1/shared/log4j-1.2.15.jar"));
+			log.debug("set up app1's class loader: " + cl1 + " "
+					+ "/tmp/app1/shared");
 
-		ThreadGroup group = Thread.currentThread().getThreadGroup();
-		synchronized (group) {
-			group.notifyAll();
-		}
-		log.debug("ClassLoaderThread end !!!");
+			cl2 = new MoorClassLoader(cl, true, new URL("file", "",
+					"/tmp/app2/shared/log4j-1.2.15.jar"));
+			log.debug("set up app2's class loader: " + cl2 + " "
+					+ "/tmp/app2/shared");
 
+			Thread t1 = getThreadFromClassLoader(cl1);
+			Thread t2 = getThreadFromClassLoader(cl2);
+
+			t1.setName("app1");
+			t2.setName("app2");
+
+			t1.start();
+			t2.start();
+
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		log.debug("AppLoaderThread end !!!");
 	}
 }
