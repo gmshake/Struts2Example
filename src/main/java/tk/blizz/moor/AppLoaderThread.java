@@ -4,8 +4,8 @@ import org.apache.log4j.Logger;
 
 import tk.blizz.moor.loader.MoorClassLoader;
 
-public class ClassLoaderThread extends Thread {
-	private static final Logger log = Logger.getLogger(ClassLoaderThread.class);
+public class AppLoaderThread extends Thread {
+	private static final Logger log = Logger.getLogger(AppLoaderThread.class);
 
 	private Thread getThreadFromClassLoader(ClassLoader loader) {
 		Thread thread = (Thread) Utils.getInstanceFromClassLoader(
