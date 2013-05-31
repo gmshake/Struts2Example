@@ -5,52 +5,114 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class MoorClassLoader extends ClassLoader {
-	private final String path;
-	private final boolean useClassInPathOnly;
+	private final String[] path;
+	private final ArrayList<URL> urls;
+	private final boolean parentLast;
+
+	private final HashMap<String, Class<?>> classes;
 
 	public MoorClassLoader() {
-		this(null);
+		this(getSystemClassLoader());
 	}
 
 	public MoorClassLoader(String path) {
-		this(path, false);
+		this(new String[] { path });
 	}
 
-	public MoorClassLoader(String path, boolean useClassInPathOnly) {
-		this.path = path;
-		this.useClassInPathOnly = useClassInPathOnly;
+	public MoorClassLoader(String[] path) {
+		this(false, path);
 	}
 
-	private final HashMap<String, Class<?>> classes = new HashMap<String, Class<?>>();
+	public MoorClassLoader(boolean parentLast, String path) {
+		this(parentLast, new String[] { path });
+	}
+
+	public MoorClassLoader(boolean parentLast, String[] path) {
+		this(getSystemClassLoader(), parentLast, path);
+	}
+
+	public MoorClassLoader(ClassLoader parent) {
+		this(parent, false);
+	}
+
+	public MoorClassLoader(ClassLoader parent, boolean parentLast) {
+		this(parent, parentLast, (String[]) null);
+	}
+
+	public MoorClassLoader(ClassLoader parent, boolean parentLast, String path) {
+		this(parent, parentLast, new String[] { path });
+	}
+
+	public MoorClassLoader(ClassLoader parent, boolean parentLast, String[] path) {
+		super(parent);
+
+		ArrayList<String> systemClassPath = parsePath(System.getProperty(
+				"java.class.path").split(":"));
+		ArrayList<String> userClassPath = parsePath(path);
+
+		ArrayList<String> pathList = new ArrayList<String>(
+				systemClassPath.size() + userClassPath.size());
+		pathList.addAll(systemClassPath);
+		pathList.addAll(userClassPath);
+
+		path = new String[pathList.size()];
+
+		this.path = pathList.toArray(path);
+		this.urls = getUrls(this.path);
+		this.parentLast = parentLast;
+		this.classes = new HashMap<String, Class<?>>();
+	}
 
 	@Override
 	protected synchronized Class<?> loadClass(String name, boolean resolve)
 			throws ClassNotFoundException {
 
-		// First, check if the class has already been loaded
 		Class<?> c = findLoadedClass(name);
 		if (c == null) {
-			c = myFindClass(name);
-		}
-		// if (c == null) {
-		// c = getParent().loadClass(name);
-		// }
-		if (c == null) {
-			c = super.loadClass(name, false);
+			if (this.parentLast) {
+				try {
+					c = findClass(name);
+				} catch (ClassNotFoundException e) {
+					// ClassNotFoundException thrown if class not found
+					// from the non-null parent class loader
+				}
+			}
+
+			if (c == null) {
+				try {
+					if (getParent() != null) {
+						c = getParent().loadClass(name);
+					} else {
+						c = getSystemClassLoader().loadClass(name);
+					}
+				} catch (ClassNotFoundException e) {
+					// ClassNotFoundException thrown if class not found
+					// from the non-null parent class loader
+				}
+			}
+
+			if (c == null && !this.parentLast) {
+				c = findClass(name);
+			}
 		}
 		if (resolve) {
 			resolveClass(c);
 		}
 		return c;
-
 	}
 
-	public Class<?> myFindClass(String className) {
+	@Override
+	public Class<?> findClass(String className) throws ClassNotFoundException {
 		System.out.println(this.toString() + " load: " + className);
 
 		Class<?> result = this.classes.get(className); // checks in cached
@@ -59,14 +121,17 @@ public class MoorClassLoader extends ClassLoader {
 			return result;
 		}
 
+		// FIXME: need this??
+		// try {
+		// return findSystemClass(className);
+		// } catch (Exception e) {
+		// }
+
 		InputStream is = null;
 		ByteArrayOutputStream byteStream = null;
 		try {
 			is = getFromPath(className);
-			if (is == null && !this.useClassInPathOnly)
-				is = getFromSystemClassPath(className);
-			if (is == null)
-				return null;
+
 			byteStream = new ByteArrayOutputStream();
 			int nextValue = is.read();
 			while (-1 != nextValue) {
@@ -80,7 +145,7 @@ public class MoorClassLoader extends ClassLoader {
 			this.classes.put(className, result);
 			return result;
 		} catch (Exception e) {
-			return null;
+			throw new ClassNotFoundException(className);
 		} finally {
 			if (byteStream != null)
 				try {
@@ -95,32 +160,26 @@ public class MoorClassLoader extends ClassLoader {
 		}
 	}
 
+	@Override
+	protected URL findResource(String name) {
+		return super.findResource(name);
+	}
+
+	@Override
+	protected Enumeration<URL> findResources(String name) throws IOException {
+		return super.findResources(name);
+	}
+
 	private InputStream getFromPath(String className) {
-		if (this.path == null)
-			return null;
-
-		File f = new File(this.path);
-		InputStream is = null;
-		if (f.isDirectory()) {
-			is = getFromDir(className, f);
-
-			if (is != null)
-				return is;
-
-			File[] list = f.listFiles();
-			if (list == null)
-				return null;
-
-			for (File l : list) {
-				if (l.isFile() && l.getAbsolutePath().endsWith(".jar")) {
-					is = getFromJar(className, l);
-					if (is != null)
-						return is;
-				}
+		for (String s : this.path) {
+			InputStream is = null;
+			File f = new File(s);
+			if (f.isDirectory()) {
+				is = getFromDir(className, f);
+			} else if (f.isFile() && f.getAbsolutePath().endsWith(".jar")) {
+				is = getFromJar(className, f);
 			}
 
-		} else if (f.isFile() && this.path.endsWith(".jar")) {
-			is = getFromJar(className, f);
 			if (is != null)
 				return is;
 		}
@@ -128,39 +187,24 @@ public class MoorClassLoader extends ClassLoader {
 		return null;
 	}
 
-	private InputStream getFromSystemClassPath(String className) {
-		String[] cp = System.getProperty("java.class.path").split(":");
+	private ArrayList<String> parsePath(String[] cp) {
+		ArrayList<String> list;
 		if (cp != null) {
+			list = new ArrayList<String>(cp.length);
 			for (String s : cp) {
-				if (s == null || s.isEmpty())
+				if (s == null)
+					continue;
+				if (s.isEmpty())
 					continue;
 				File f = new File(s);
-				InputStream is = null;
-				if (f.isDirectory()) {
-					is = getFromDir(className, f);
-
-					if (is != null)
-						return is;
-
-					File[] list = f.listFiles();
-					if (list == null)
-						return null;
-					for (File l : list) {
-						if (l.isFile() && l.getAbsolutePath().endsWith(".jar")) {
-							is = getFromJar(className, l);
-							if (is != null)
-								return is;
-						}
-					}
-
-				} else if (f.isFile() && s.endsWith(".jar")) {
-					is = getFromJar(className, f);
-					if (is != null)
-						return is;
-				}
+				if (f.isDirectory())
+					list.add(f.getAbsolutePath());
+				else if (f.isFile() && f.getAbsolutePath().endsWith(".jar"))
+					list.add(f.getAbsolutePath());
 			}
-		}
-		return null;
+		} else
+			list = new ArrayList<String>(0);
+		return list;
 	}
 
 	private InputStream getFromDir(String className, File dir) {
@@ -192,11 +236,45 @@ public class MoorClassLoader extends ClassLoader {
 		return null;
 	}
 
+	private ArrayList<URL> getUrls(String[] path) {
+		ArrayList<URL> urls = new ArrayList<URL>(path.length + 10);
+		for (String s : path) {
+			try {
+				urls.add(new URL("file", "", s));
+			} catch (MalformedURLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return urls;
+	}
+
 	private String classNameToFile(String className) {
 		return className.replace('.', '/').concat(".class");
 	}
 
 	private String fileNameToClassName(String fileName) {
 		return fileName.replaceAll("\\.class", "").replace('/', '.');
+	}
+
+	private class MoorResourcesEnumeration implements Enumeration<URL> {
+		private final Iterator<URL> it;
+		private final Enumeration<URL> supers;
+
+		MoorResourcesEnumeration(Iterator<URL> it, Enumeration<URL> supers) {
+			this.it = it;
+			this.supers = supers;
+		}
+
+		@Override
+		public boolean hasMoreElements() {
+			return this.it.hasNext();
+		}
+
+		@Override
+		public URL nextElement() {
+			return this.it.next();
+		}
+
 	}
 }
